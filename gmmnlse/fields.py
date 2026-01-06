@@ -28,10 +28,12 @@ class Pulse:
     domain.t: (Nt,) real tensor (float32/float64)
     """
     def __init__(self, domain, coeffs, tfwhm, total_energy=1.0,
-                 p=1, C=0.0, t_center=0.0, type='gaussian', values=None):
+                 p=1, C=0.0, t_center=0.0, type='gaussian', values=None, device=None):
         if type == 'custom':
             # values는 (P, Nt) complex tensor라고 가정
-            self.fields = values
+            if device is not None:
+                self.fields = torch.tensor(values, device=device, dtype=torch.complex64)
+            
         elif type == 'gaussian':
             self.fields = self.gaussian(
                 domain, coeffs, tfwhm, total_energy,

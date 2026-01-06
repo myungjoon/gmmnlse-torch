@@ -7,6 +7,11 @@ from gmmnlse import plot_temporal_evolution, plot_spectral_evolution
 from gmmnlse.mode import ModeSolver
 from gmmnlse import c0
 
+
+from pathlib import Path
+PROJ_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJ_ROOT / "data"
+
 plt.rcParams['font.size'] = 15
 
 COMP_MATLAB = False  # Set to True ibf you want to compare with MATLAB data
@@ -83,7 +88,7 @@ def generate_random_target_field(domain, num_modes, seed=None, device=None, dtyp
     # Use a Gaussian pulse shape for each mode (arbitrary parameters)
     tfwhm = 0.2  # ps
     total_energy = 1.0
-    from gmmnlse.fields import Pulse
+    
     pulse = Pulse(domain, coeffs, tfwhm, total_energy=total_energy, type='gaussian')
     fields = pulse.fields  # (num_modes, Nt)
     # Sum over modes to get the target field shape
@@ -127,9 +132,9 @@ if __name__ == '__main__':
     coeffs = 0.5 + 0.5 * torch.randn(num_modes, dtype=torch.float64, device=device)
     coeffs = coeffs / torch.sqrt(torch.sum(torch.abs(coeffs)**2))
 
-    S = np.load('./data/predefined_data.npz')['S']
-    hrw = np.load('./data/predefined_data.npz')['hrw']
-    betas = np.load('./data/predefined_data.npz')['betas']
+    S = np.load(DATA_DIR / 'predefined_data.npz')['S']
+    hrw = np.load(DATA_DIR / 'predefined_data.npz')['hrw']
+    betas = np.load(DATA_DIR / 'predefined_data.npz')['betas']
 
     #convert to torch
     betas = torch.tensor(betas, dtype=torch.float32, device=device)
@@ -138,8 +143,8 @@ if __name__ == '__main__':
 
     domain = Domain(Nt, Nz, dz, dt, time_window, L=L0)
     
-    initial_fields_gt = np.load('./data/initial_pulse_all.npy')
-    output_fields_gt = np.load('./data/output_pulse_all.npy')
+    initial_fields_gt = np.load(DATA_DIR / 'initial_pulse_all.npy')
+    output_fields_gt = np.load(DATA_DIR / 'output_pulse_all.npy')
     initial_fields_gt = torch.tensor(initial_fields_gt, dtype=torch.complex64, device=device)
 
     initial_fields_gt = torch.transpose(initial_fields_gt, 0, 1)

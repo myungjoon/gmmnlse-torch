@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import scipy.io as sio 
 
+from pathlib import Path
+PROJ_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJ_ROOT / "data"
+
 plt.rcParams['font.size'] = 18
 
 Nt = 2**14
@@ -9,12 +13,8 @@ time_window = 30 # ps
 dt = time_window / Nt
 t = np.linspace(-0.5 * time_window, 0.5 * time_window, Nt)
 
-import os
-# change the working directory to the directory of the script
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
 ind = 36
-data = sio.loadmat('./data/GRIN_1030_SPMGRINA_single_gpu_ss_1.mat')
+data = sio.loadmat(DATA_DIR / 'GRIN_1030_SPMGRINA_single_gpu_ss_1.mat')
 # The field data is typically stored under a key like 'fields' or similar.
 # Let's print the keys to inspect:
 fields_init = data['prop_output']['fields'][0,0][:,:,0]

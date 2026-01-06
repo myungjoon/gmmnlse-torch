@@ -6,41 +6,39 @@ This script tests that simulations run consistently on both devices.
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 from gmmnlse import Domain, Pulse, Fiber, Boundary, Simulation, SimConfig
 
+
 def test_device_consistency():
-    """Test that simulations run consistently on CPU and CUDA."""
-    
+    real_type = torch.float64
+    complex_type = torch.complex128
     # Test parameters
     wvl0 = 1030e-9
-    L0 = 0.001  # Short length for quick test
+    L0 = 0.01  # Short length for quick test
     n2 = 2.3e-20
     fr = 0.18
     num_modes = 2  # Small number for quick test
-    total_energy = 50.0  # nJ
+    total_energy = 5.0  # nJ
     
-    Nt = 2**10  # Small size for quick test
-    time_window = 10  # ps
+    Nt = 2**12  
+    time_window = 10
     dt = time_window / Nt
-    tfwhm = 0.2  # ps
+    tfwhm = 0.2
     
     dz = 1e-5
     z = np.arange(0, L0, dz)
     Nz = len(z)
     
-    # Simple test data
     betas = torch.tensor([[0.0, 0.0, 18.9382, 0.0, 0.0, 0.0],
-                         [0.0, 0.0, 18.9382, 0.0, 0.0, 0.0]], dtype=torch.float32)
+                         [0.0, 0.0, 18.9382, 0.0, 0.0, 0.0]], dtype=real_type)
     
-    # Simple S tensor (identity-like)
-    S = torch.zeros((2, 2, 2, 2), dtype=torch.complex64)
+    S = torch.zeros((2, 2, 2, 2), dtype=complex_type)
     for i in range(2):
         S[i, i, i, i] = 1.0
     
-    # Simple Raman response
-    hrw = torch.ones(Nt, dtype=torch.complex64)
+    hrw = torch.ones(Nt, dtype=complex_type)
     
-    # Test both devices
     devices = ['cpu']
     if torch.cuda.is_available():
         devices.append('cuda')
@@ -57,16 +55,16 @@ def test_device_consistency():
         hrw_device = hrw.to(device)
         
         # Create coeffs on device
-        coeffs = 0.01 * torch.ones(num_modes, dtype=torch.float32, device=device)
+        coeffs = 0.01 * torch.ones(num_modes, dtype=real_type, device=device)
         coeffs[0] = 1.0
         coeffs = coeffs / torch.sqrt(torch.sum(torch.abs(coeffs)**2))
-        
+        print(f'Device: {device}, coeffs: {coeffs}')
         # Create simulation objects
         domain = Domain(Nt, Nz, dz, dt, time_window, L=L0)
         fiber = Fiber(wvl0=wvl0, n2=n2, betas=betas_device, S=S_device, L=L0, fr=fr, hrw=hrw_device)
         initial_fields = Pulse(domain, coeffs, tfwhm=tfwhm, total_energy=total_energy, p=1, C=0, t_center=0, type='gaussian', values=None)
         boundary = Boundary('periodic')
-        config = SimConfig(center_wavelength=wvl0, num_save=10, dispersion=True, nonlinear=True, raman=False, self_steeping=False)
+        config = SimConfig(center_wavelength=wvl0, num_save=10, dispersion=True, kerr=True, raman=False, self_steeping=False)
         
         # Create and run simulation
         sim = Simulation(domain, fiber, initial_fields, boundary, config)
@@ -74,7 +72,7 @@ def test_device_consistency():
         
         # Store results
         results[device_name] = {
-            'output_fields': sim.output_fields.detach().cpu().numpy(),
+            'output_fields': sim.fields.fields.detach().cpu().numpy(),
             'saved_fields': sim.saved_fields.detach().cpu().numpy() if hasattr(sim, 'saved_fields') else None
         }
         
@@ -95,20 +93,36 @@ def test_device_consistency():
         print(f"  Max difference: {max_diff:.2e}")
         print(f"  Mean difference: {mean_diff:.2e}")
         
+        
+
+
         if max_diff < 1e-6:
             print("  ✓ Results are consistent between CPU and CUDA")
         else:
             print("  ✗ Results differ between CPU and CUDA")
             return False
+
+
+        
     else:
         print("\nOnly CPU available for testing")
     
     print("\n✓ Device consistency test passed!")
-    return True
+
+    return True, cpu_result, cuda_result    
 
 if __name__ == "__main__":
-    success = test_device_consistency()
+    success, cpu_result, cuda_result = test_device_consistency()
     if success:
         print("\nAll tests passed! Device consistency is working properly.")
     else:
         print("\nTests failed! There may be device consistency issues.")
+    
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(np.abs(cpu_result[0])**2, label='CPU, mode 0')
+    plt.plot(np.abs(cuda_result[0])**2, label='CUDA, mode 0')
+    plt.plot(np.abs(cpu_result[1])**2, label='CPU, mode 1')
+    plt.plot(np.abs(cuda_result[1])**2, label='CUDA, mode 1')
+    plt.legend()
+    plt.show()

@@ -15,6 +15,7 @@ class SimConfig:
     kerr: bool = True
     raman: bool = True
     self_steeping: bool = True
+    disorder: bool = False
     num_chunks: int = 1
 
 class Simulation:
@@ -37,7 +38,7 @@ class Simulation:
         """
         dev = N_t.device
         # ∂t N = IFFT{ iΩ * FFT(N) }
-        Om = self.domain.omega.to(device=dev, dtype=torch.float64)  # (Nt,)
+        Om = self.domain.omega.to(device=dev, dtype=torch.float32)  # (Nt,)
         dN_dt = torch.fft.ifft(1j * Om * torch.fft.fft(N_t, dim=-1), dim=-1)
         return -(gamma / omega0) * dN_dt
     
@@ -52,6 +53,10 @@ class Simulation:
         beta1_ref = float(torch.as_tensor(self.fiber.betas[0][1]).real)
 
         D = torch.zeros((P, Nt), dtype=torch.complex64, device=device)
+
+        if self.config.disorder:
+            beta0_ref = beta0_ref + torch.randn(P, dtype=torch.float32, device=device) * 0.01
+            beta1_ref = beta1_ref + torch.randn(P, dtype=torch.float32, device=device) * 0.01
 
         for p in range(P):
             betap = [float(b) for b in self.fiber.betas[p]]
@@ -97,23 +102,28 @@ class Simulation:
 
 
         # (2) Raman delayed part
-        T = torch.einsum('mt,nt->mnt', A_t, A_t.conj())  # (P, P, Nt)
+        if self.config.raman:
+            T = torch.einsum('mt,nt->mnt', A_t, A_t.conj())  # (P, P, Nt)
 
-        # Convolve T with Raman response in time (via FFT)
-        T_w = torch.fft.fft(T, dim=-1)  # (P, P, Nt)
-        hrw_broadcast = hrw.conj().view(1, 1, -1)  # (1, 1, Nt)
-        T_conv = torch.fft.ifft(T_w * hrw_broadcast, dim=-1)  # (P, P, Nt)
-        T_conv = T_conv * self.domain.dt  # time step normalization
+            # Convolve T with Raman response in time (via FFT)
+            T_w = torch.fft.fft(T, dim=-1)  # (P, P, Nt)
+            hrw_broadcast = hrw.conj().view(1, 1, -1)  # (1, 1, Nt)
+            T_conv = torch.fft.ifft(T_w * hrw_broadcast, dim=-1)  # (P, P, Nt)
+            T_conv = T_conv * self.domain.dt  # time step normalization
 
-        Vpl = torch.einsum('pmrs,rst->pmt', self.fiber.S, T_conv)  # (P, P, Nt)
+            Vpl = torch.einsum('pmrs,rst->pmt', self.fiber.S, T_conv)  # (P, P, Nt)
 
-        S_raman = torch.einsum('pmt,mt->pt', Vpl, A_t)  # (P, Nt)
-        dA_raman_t = 1j * gamma * S_raman
+            S_raman = torch.einsum('pmt,mt->pt', Vpl, A_t)  # (P, Nt)
+            dA_raman_t = 1j * gamma * S_raman
+
+        else:
+            dA_raman_t = 0.0
 
         # S_total = (1.0 - fr) * S_kerr + fr * S_raman
         dA = (1.0 - fr) * dA_kerr_t + fr * dA_raman_t
 
         sw = 1.0
+        
         if self.config.self_steeping:
             omega0 = 2.0 * math.pi * C0 / float(self.fiber.wvl0) * 1e-12
             Omega = self.domain.omega.to(device=A_t.device, dtype=torch.float32).view(1, -1)  
@@ -129,9 +139,9 @@ class Simulation:
 
         fields = torch.fft.fft(fields, dim=-1)  
 
-        # if is_save_fields:
-        #     self.saved_fields[self.cnt] = fields
-        #     self.cnt += 1
+        if is_save_fields:
+            self.saved_fields[self.cnt] = fields
+            self.cnt += 1
 
         k1 = self.domain.dz * self._build_nonlinear_operator(fields, self.gamma, self.fiber.fr, self.fiber.hrw,)
         k2 = self.domain.dz * self._build_nonlinear_operator(fields + 0.5 * k1, self.gamma, self.fiber.fr, self.fiber.hrw, )
@@ -139,10 +149,6 @@ class Simulation:
         k4 = self.domain.dz * self._build_nonlinear_operator(fields + k3, self.gamma, self.fiber.fr, self.fiber.hrw,)
 
         fields = fields + (k1 + 2*k2 + 2*k3 + k4) / 6.0
-
-        if is_save_fields:
-            self.saved_fields[self.cnt] = fields
-            self.cnt += 1
 
         fields = torch.fft.ifft(fields, dim=-1)
         if self.config.dispersion:
@@ -156,19 +162,17 @@ class Simulation:
             self.saved_fields = torch.zeros(self.config.num_save+1, self.num_modes, self.domain.Nt, dtype=torch.complex64, device=self.fields.fields.device)
             self.cnt = 0
             self.saved_fields[self.cnt] = self.fields.fields
+            self.cnt += 1
 
         with torch.set_grad_enabled(requires_grad):
             
             fields = torch.fft.ifft(self.fields.fields, dim=-1)
             save_interval = self.domain.Nz // self.config.num_save
             for i in tqdm(range(self.domain.Nz), disable=is_slurm_job):
-                if i % save_interval == 0:
-                    is_save_fields = True
-        
+                is_save_fields = True if i % save_interval == 0 else False    
                 if use_cp:
                     pass
                 else:
                     fields = self._propagate_one_step(fields, is_save_fields)
-                
 
             self.fields.fields = torch.fft.fft(fields, dim=-1)
