@@ -2,6 +2,8 @@ from .domain import *
 from .boundary import *
 from .fiber import *
 from .fields import *
+from .mode import *
+from .gain_loss import *
 from .simulation import *
-from .util import *
 from .constants import *
+from .viz import *

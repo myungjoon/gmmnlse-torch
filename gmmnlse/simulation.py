@@ -9,12 +9,13 @@ C0 = 299792458  # m/s
 
 @dataclass
 class SimConfig:
-    center_wavelength: float
     num_save: int = -1
     dispersion: bool = True
     kerr: bool = True
     raman: bool = True
     self_steeping: bool = True
+    gain: bool = False
+    loss: bool = False
     disorder: bool = False
     num_chunks: int = 1
 
@@ -52,7 +53,7 @@ class Simulation:
         beta0_ref = float(torch.as_tensor(self.fiber.betas[0][0]).real)
         beta1_ref = float(torch.as_tensor(self.fiber.betas[0][1]).real)
 
-        D = torch.zeros((P, Nt), dtype=torch.complex64, device=device)
+        D = torch.zeros((P, Nt), dtype=torch.complex128, device=device)
 
         if self.config.disorder:
             beta0_ref = beta0_ref + torch.randn(P, dtype=torch.float32, device=device) * 0.01
@@ -67,7 +68,7 @@ class Simulation:
             # k≥2 terms
             for k in range(2, len(betap)):
                 poly = poly + betap[k] * (omega ** k) / math.factorial(k)
-            D[p] = poly.to(torch.complex64)
+            D[p] = poly.to(torch.complex128)
 
         return D
 
@@ -134,9 +135,8 @@ class Simulation:
         return dA 
 
     def _propagate_one_step(self, fields, is_save_fields=False):
-        if self.config.dispersion: 
-            fields = fields * torch.exp(1j * self.domain.dz / 2 * self.D)
-
+        
+        fields = fields * torch.exp(1j * self.domain.dz / 2 * self.D)
         fields = torch.fft.fft(fields, dim=-1)  
 
         if is_save_fields:
@@ -149,17 +149,15 @@ class Simulation:
         k4 = self.domain.dz * self._build_nonlinear_operator(fields + k3, self.gamma, self.fiber.fr, self.fiber.hrw,)
 
         fields = fields + (k1 + 2*k2 + 2*k3 + k4) / 6.0
-
         fields = torch.fft.ifft(fields, dim=-1)
-        if self.config.dispersion:
-            fields = fields * torch.exp(1j * self.domain.dz / 2 * self.D)
+        fields = fields * torch.exp(1j * self.domain.dz / 2 * self.D)
 
         return fields
 
     def run(self, requires_grad=False, use_cp=False):
 
         if self.config.num_save > 0:
-            self.saved_fields = torch.zeros(self.config.num_save+1, self.num_modes, self.domain.Nt, dtype=torch.complex64, device=self.fields.fields.device)
+            self.saved_fields = torch.zeros(self.config.num_save+1, self.num_modes, self.domain.Nt, dtype=torch.complex128, device=self.fields.fields.device)
             self.cnt = 0
             self.saved_fields[self.cnt] = self.fields.fields
             self.cnt += 1

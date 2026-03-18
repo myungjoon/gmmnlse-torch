@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gmmnlse import Domain, Pulse, Fiber, Boundary, Simulation, SimConfig
 
+plt.rcParams['font.size'] = 18
 
 def test_device_consistency():
     real_type = torch.float64
@@ -93,36 +94,41 @@ def test_device_consistency():
         print(f"  Max difference: {max_diff:.2e}")
         print(f"  Mean difference: {mean_diff:.2e}")
         
-        
-
-
         if max_diff < 1e-6:
             print("  ✓ Results are consistent between CPU and CUDA")
         else:
             print("  ✗ Results differ between CPU and CUDA")
             return False
 
-
-        
     else:
+        cpu_result = results['cpu']['output_fields']
         print("\nOnly CPU available for testing")
+        return True, cpu_result
     
     print("\n✓ Device consistency test passed!")
 
-    return True, cpu_result, cuda_result    
+    return True, [cpu_result, cuda_result]   
 
 if __name__ == "__main__":
-    success, cpu_result, cuda_result = test_device_consistency()
+
+    success, results = test_device_consistency()
     if success:
         print("\nAll tests passed! Device consistency is working properly.")
     else:
         print("\nTests failed! There may be device consistency issues.")
     
+    if isinstance(results, list):
+        cpu_result, cuda_result = results
+    else:
+        cpu_result = results
+        cuda_result = None
     
     plt.figure(figsize=(10, 5))
     plt.plot(np.abs(cpu_result[0])**2, label='CPU, mode 0')
-    plt.plot(np.abs(cuda_result[0])**2, label='CUDA, mode 0')
     plt.plot(np.abs(cpu_result[1])**2, label='CPU, mode 1')
-    plt.plot(np.abs(cuda_result[1])**2, label='CUDA, mode 1')
+    
+    if cuda_result is not None:
+        plt.plot(np.abs(cuda_result[0])**2, label='CUDA, mode 0')
+        plt.plot(np.abs(cuda_result[1])**2, label='CUDA, mode 1')
     plt.legend()
     plt.show()

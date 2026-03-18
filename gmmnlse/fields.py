@@ -2,32 +2,8 @@
 import torch
 import math
 
-# class Pulse:
-#     def __init__(self, domain, coeffs, tfwhm, total_energy=1.0, p=1, C=0, t_center=0, type='gaussian', values=None):
-#         num_modes = coeffs.shape[0]
-#         if type == 'custom':
-#             self.fields = values
-#         elif type == 'gaussian':
-#             self.fields = self.gaussian(domain, coeffs, tfwhm, total_energy, p=p, C=C, t_center=t_center, num_modes=num_modes)
-
-#     def gaussian(self, domain, coeffs, tfwhm, total_energy, p=1, C=0, t_center=0, num_modes=1):
-#         # pulse_profile = torch.zeros((num_modes, domain.Nt), dtype=torch.complex128)
-#         t0 = tfwhm / (2 * math.sqrt(math.log(2)))
-#         # time_profile = np.sqrt(total_energy / (t0*np.sqrt(np.pi)) * 1000) * np.exp(-(1+1j*C)*(t-t_center)**(2*p)/(2*t0**(2*p)))
-#         pulse_profile = math.sqrt(total_energy / (t0 * math.sqrt(math.pi)) * 1000) * torch.exp(-(1 + 1j * C) * (domain.t - t_center)**(2 * p) / (2 * t0**(2 * p)))
-#         pulse_profile = pulse_profile.to(torch.complex128)
-
-#         fields = coeffs[:, None] * pulse_profile[None, :]
-#         return fields
-
-
-
 class Pulse:
-    """
-    coeffs: (P,) complex tensor (complex64 또는 complex128)
-    domain.t: (Nt,) real tensor (float32/float64)
-    """
-    def __init__(self, domain, coeffs, tfwhm, total_energy=1.0,
+    def __init__(self, domain, coeffs, tfwhm=1.0, total_energy=1.0,
                  p=1, C=0.0, t_center=0.0, type='gaussian', values=None, device=None):
         if type == 'custom':
             # values는 (P, Nt) complex tensor라고 가정

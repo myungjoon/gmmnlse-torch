@@ -17,15 +17,9 @@ radius = 8e-6
 
 wvl0 = 1550e-9
 
-
-# filepath = f'./GRIN_1550_FMF/radius{int(radius*1e6)}boundary0000fieldscalarmode1wavelength{int(wvl0*1e9)}.mat'
-# phi = sio.loadmat(filepath)['phi']
-# phi_shape = phi.shape
-# mode_fields = np.zeros((num_modes, phi_shape[0], phi_shape[1]), dtype=np.complex128)
-# mode_fields[0] = phi
 mode_fields = np.zeros((num_modes, Nx, Ny), dtype=np.complex128)
 for i in range(num_modes):
-    filepath = f'./GRIN_1550_FMF/radius{int(radius*1e6)}boundary0000fieldscalarmode{i+1}wavelength{int(wvl0*1e9)}.mat'
+    filepath = f'./GRIN_1550_FMF/radius8boundary0000fieldscalarmode{i+1}wavelength1550.mat'
     mode_fields[i] = sio.loadmat(filepath)['phi']
 
 fields = torch.tensor(mode_fields, dtype=torch.complex64, device=device)
@@ -47,12 +41,11 @@ S_k_numpy = S_k.cpu().numpy()
 # thresholding
 threshold = np.max(np.abs(S_k_numpy)) / 1e7
 S_k_numpy[np.abs(S_k_numpy) < threshold] = 0
-
+np.save(f'S_k_{num_modes}modes_2.npy', S_k_numpy)
 
 # Reference check for MATLAB result
 # load mat file
-S_k_matlab = sio.loadmat('./GRIN_1550_FMF/S_tensors_3modes.mat')
-S_k_matlab = S_k_matlab['SR']
+S_k_matlab = np.load(f'./S_k_{num_modes}modes.npy')
 
 # Compare with MATLAB result
 norm_numpy = np.linalg.norm(S_k_numpy)
@@ -66,4 +59,3 @@ print(f'Norm of difference : {norm_error}')
 
 print(f'Ratio of norms : {norm_error / norm_matlab}')
 
-np.save(f'S_k_{num_modes}modes.npy', S_k_numpy)
