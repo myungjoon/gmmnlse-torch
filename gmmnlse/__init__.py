@@ -7,3 +7,4 @@ from .gain_loss import *
 from .simulation import *
 from .constants import *
 from .viz import *
+from .svmodes import *
