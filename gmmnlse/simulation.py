@@ -38,7 +38,6 @@ class Simulation:
         반환 : -(gamma/omega0) * dN/dt  (P, Nt) complex
         """
         dev = N_t.device
-        # ∂t N = IFFT{ iΩ * FFT(N) }
         Om = self.domain.omega.to(device=dev, dtype=torch.float32)  # (Nt,)
         dN_dt = torch.fft.ifft(1j * Om * torch.fft.fft(N_t, dim=-1), dim=-1)
         return -(gamma / omega0) * dN_dt
@@ -62,7 +61,7 @@ class Simulation:
         for p in range(P):
             betap = [float(b) for b in self.fiber.betas[p]]
             # k=0,1 terms
-            poly = torch.zeros(Nt, dtype=torch.float32, device=device)
+            poly = torch.zeros(Nt, dtype=torch.float64, device=device)
             poly = poly + (betap[0] - beta0_ref)                   
             poly = poly + (betap[1] - beta1_ref) * omega
             # k≥2 terms
@@ -166,7 +165,8 @@ class Simulation:
             
             fields = torch.fft.ifft(self.fields.fields, dim=-1)
             save_interval = self.domain.Nz // self.config.num_save
-            for i in tqdm(range(self.domain.Nz), disable=is_slurm_job):
+            for i in tqdm(range(self.domain.Nz)):
+            # for i in tqdm(range(self.domain.Nz), disable=is_slurm_job):
                 is_save_fields = True if i % save_interval == 0 else False    
                 if use_cp:
                     pass

@@ -25,7 +25,7 @@ class Pulse:
         Returns:
             fields: (P, Nt) complex tensor
         """
-        # ----- dtype, device 정렬 -----
+        # ----- dtype, device -----
         device = coeffs.device
         cdtype = coeffs.dtype               # complex64 or complex128
         # assert cdtype in (torch.complex64, torch.complex128), "coeffs must be complex dtype"
@@ -34,7 +34,7 @@ class Pulse:
 
         t = domain.t.to(device=device, dtype=rdtype)  # (Nt,)
 
-        # ----- 스칼라/하이퍼파라미터를 torch 텐서로 -----
+        # ----- torch tensor -----
         tfwhm_t       = torch.as_tensor(tfwhm,       dtype=rdtype, device=device)
         total_energy_t= torch.as_tensor(total_energy,dtype=rdtype, device=device)
         p_t           = torch.as_tensor(p,           dtype=rdtype, device=device)

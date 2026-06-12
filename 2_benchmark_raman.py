@@ -13,8 +13,8 @@ plt.rcParams['font.size'] = 15
 
 DISPERSION = True
 KERR = True
-RAMAN = False
-SELF_STEEPING = False
+RAMAN = True
+SELF_STEEPING = True
 DISORDER = False
 GAIN = False
 LOSS = False
@@ -31,18 +31,18 @@ def get_hrw(ts, t1=12.2e-3, t2=32e-3):
 
 if __name__ == '__main__':
 
-    L0 = 0.5
-    dz = 1e-6
+    L0 = 10.0
+    dz = 5e-5
     
-    wvl0 = 775e-9
+    wvl0 = 1550e-9
     n2 = 2.3e-20
     fr = 0.18
 
-    num_modes = 6
-    total_energy = 15.0 # nJ
+    num_modes = 91
+    total_energy = 200.0 # nJ
     
-    Nt = 2**10
-    time_window = 5 # ps
+    Nt = 2**13
+    time_window = 100 # ps
     dt = time_window / Nt
     dt_s = dt * 1e-12  # s
     tfwhm = 0.5 # ps
@@ -59,23 +59,35 @@ if __name__ == '__main__':
     t2 = 32e-3
    
     hrw = get_hrw(ts)
-    hrw = torch.tensor(hrw, dtype=torch.complex64, device=device)
+    hrw = torch.tensor(hrw, dtype=torch.complex128, device=device)
 
     S = np.load(f'./Sk_{num_modes}modes.npy')
     S = torch.tensor(S, dtype=torch.complex128, device=device)
     betas = np.load(f'./beta_{num_modes}modes.npy')
-    betas = torch.tensor(betas, dtype=torch.float32, device=device)
+    betas = torch.tensor(betas, dtype=torch.float64, device=device)
     
-    Nz = int(L0 / dz)
 
+    num_modes = 50
+    S = S[:num_modes,:num_modes,:num_modes,:num_modes]
+    betas = betas[:num_modes]
+
+
+    Nz = int(L0 / dz) + 1
 
     domain = Domain(Nt, Nz, dz, dt, time_window, L=L0)
     fiber = Fiber(wvl0=wvl0, n2=n2, betas=betas, S=S, L=L0, fr=fr, hrw=hrw,)
-    coeffs = torch.tensor([1.0]*num_modes, dtype=torch.complex128, device=device, requires_grad=True)
+    # coeffs = torch.tensor([1.0]*num_modes, dtype=torch.complex128, device=device, requires_grad=True)
+    coeffs = torch.zeros(num_modes, dtype=torch.complex128, device=device)
+    random_phases = torch.rand(10, device=device) * 2 * torch.pi
+    # coeffs[15:25] = torch.exp(1j * random_phases).to(torch.complex128)
     initial_fields = Pulse(domain, coeffs, tfwhm=tfwhm, total_energy=total_energy, p=1, C=0, t_center=0, type='gaussian')
     boundary = Boundary('periodic')
     config = SimConfig(dispersion=DISPERSION, kerr=KERR, raman=RAMAN, self_steeping=SELF_STEEPING, disorder=DISORDER, num_save=NUM_SAVE,)
-        
+
+    input_field = initial_fields.fields.cpu().numpy()
+    print(f'input field : {input_field.shape}')
+
+
     start_time = time.time()
     print('Running simulation...')
     print(f'{num_modes} modes')
@@ -84,8 +96,55 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f'Simulation time: {end_time - start_time} seconds')
 
+    output_fields = sim.fields.fields
+    final_field = output_fields.detach().cpu().numpy()
 
-    # output_fields = sim.fields.fields
+    input_intensity = np.abs(input_field)**2
+    final_intensity = np.abs(final_field)**2 
+    plt.figure()
+    for i in range(num_modes):
+        plt.plot(t, final_intensity[i], linewidth=2)
+    plt.xlabel('Time (ps)')
+    plt.ylabel('Power (W)')
+    plt.gca().tick_params(labelsize=14)
+    plt.tight_layout()
+    plt.savefig('time_response.png', dpi=300)
+
+    plt.figure()
+    for i in range(num_modes):
+        plt.plot(t, input_intensity[i], linewidth=2)
+    plt.xlabel('Time (ps)')
+    plt.ylabel('Power (W)')
+    plt.gca().tick_params(labelsize=14)
+    plt.tight_layout()
+    plt.savefig('time_response_init.png', dpi=300)
+
+    # Spectrum
+    field_freq = np.fft.fftshift(np.fft.ifft(final_field, axis=0), axes=0)
+    psd = np.abs(field_freq)**2 * c0 / (wavelength_nm * 1e-9)**2
+
+    plt.figure()
+    for i in range(num_modes):
+        plt.plot(wavelength_nm, psd[i], linewidth=2)
+    plt.xlabel('λ (nm)')
+    plt.ylabel('PSD (a.u.)')
+    # plt.xlim([1500, 1800])
+    plt.gca().tick_params(labelsize=14)
+    plt.tight_layout()
+    plt.savefig('spectral_response.png', dpi=300)
+
+    input_freq = np.fft.fftshift(np.fft.ifft(input_field, axis=0), axes=0)
+    psd_input = np.abs(input_freq)**2 * c0 / (wavelength_nm * 1e-9)**2
+    plt.figure()
+    for i in range(num_modes):
+        plt.plot(wavelength_nm, psd_input[i], linewidth=2)
+    plt.xlabel('λ (nm)')
+    plt.ylabel('PSD (a.u.)')
+    # plt.xlim([1500, 1800])
+    plt.gca().tick_params(labelsize=14)
+    plt.tight_layout()
+    plt.savefig('spectral_response_input.png', dpi=300)
+
     # output_saved_fields = sim.saved_fields
     # fundamental_fields = output_saved_fields[:,0,:]
     # fundamental_fields = fundamental_fields.detach().cpu().numpy()
