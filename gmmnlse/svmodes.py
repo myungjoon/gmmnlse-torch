@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
 
 
-def svmodes(lambda_, guess, nmodes, dx, dy, eps, boundary, field):
+def svmodes(wavelength, guess, nmodes, dx, dy, eps, boundary, field):
     """Calculate waveguide modes using semivectorial finite difference method."""
 
     boundary = boundary.upper()
@@ -15,7 +15,7 @@ def svmodes(lambda_, guess, nmodes, dx, dy, eps, boundary, field):
     eps = np.vstack([eps[0, :], eps, eps[-1, :]])
 
     # Compute free-space wavevector
-    k = 2 * np.pi / lambda_
+    k = 2 * np.pi / wavelength
 
     # Handle dx and dy (make them arrays if they're scalars)
     if np.isscalar(dx):
@@ -132,7 +132,7 @@ def svmodes(lambda_, guess, nmodes, dx, dy, eps, boundary, field):
     A = (A + A.T) / 2
 
     # Solve eigenvalue problem
-    shift = (2 * np.pi * guess / lambda_)**2
+    shift = (2 * np.pi * guess / wavelength)**2
 
     # Use scipy's sparse eigenvalue solver
     try:
@@ -143,7 +143,7 @@ def svmodes(lambda_, guess, nmodes, dx, dy, eps, boundary, field):
         d, v = eigs(A, k=nmodes, sigma=shift, which='LM')
 
     # Calculate effective indices
-    neff = lambda_ * np.sqrt(d) / (2 * np.pi)
+    neff = wavelength * np.sqrt(d) / (2 * np.pi)
 
     # Reshape eigenvectors into mode shapes
     phi = np.zeros((nx, ny, nmodes), dtype=complex)
