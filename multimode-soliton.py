@@ -135,7 +135,7 @@ if __name__ == '__main__':
     # ax1[1].legend(loc='upper left', fontsize=12)
     ax1[1].set_xlabel('Wavelength (nm)', fontsize=18)
     ax1[1].set_ylabel('Intensity (a.u.)', fontsize=18)
-    plt.savefig(f'fmf-input-{num_modes}-{dz}.png', dpi=300)
+    plt.savefig(f'input-{num_modes}-{dz}.png', dpi=300)
 
     # Plot current output and ground truth for each mode
     fig, ax2 = plt.subplots(1, 2, figsize=(14, 6))
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     # ax2[1].legend(loc='upper left', fontsize=12)
     ax2[1].set_xlabel('Wavelength (nm)', fontsize=18)
     ax2[1].set_ylabel('Intensity (a.u.)', fontsize=18)
-    plt.savefig(f'fmf-output-{num_modes}-{dz}.png', dpi=300)
+    plt.savefig(f'output-{num_modes}-{dz}.png', dpi=300)
     
     fig, axes = plt.subplots(num_modes, 2, figsize=(14, 5 * num_modes))
     if num_modes == 1:
