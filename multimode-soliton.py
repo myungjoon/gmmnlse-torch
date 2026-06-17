@@ -77,13 +77,18 @@ if __name__ == '__main__':
 
     domain = Domain(Nt, Nz, dz, dt, time_window, L=L0)
     fiber = Fiber(wvl0=wvl0, n2=n2, betas=betas, S=S, L=L0, fr=fr, hrw=hrw,)
-    amplitudes = torch.ones(num_modes, dtype=torch.float64, device=device,)
-    phases = torch.rand(num_modes, dtype=torch.float64, device=device,) * 2 * torch.pi
-    coeffs = amplitudes * torch.exp(1j * phases)
-    coeffs[:5] = 0
-    coeffs[15:] = 0
+    # amplitudes = torch.ones(num_modes, dtype=torch.float64, device=device,)
+    # phases = torch.rand(num_modes, dtype=torch.float64, device=device,) * 2 * torch.pi
+    # coeffs = amplitudes * torch.exp(1j * phases)
+    # coeffs[:5] = 0
+    # coeffs[15:] = 0
 
-    np.save(f'coeffs_{num_modes}_{dz}.npy', coeffs.cpu().numpy())
+
+    # np.save(f'coeffs_{num_modes}_{dz}.npy', coeffs.cpu().numpy())
+    
+    coeffs = np.load(f'coeffs_{num_modes}_{dz}.npy')
+    coeffs = torch.tensor(coeffs, dtype=torch.complex128, device=device)
+    
     initial_fields = Pulse(domain, coeffs, tfwhm=tfwhm, total_energy=total_energy, p=1, C=0, t_center=t_center, type='gaussian')
     
     input_fields = initial_fields.fields
