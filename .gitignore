@@ -173,10 +173,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-*.npy
-*.mat
 .DS_Store
 /data
 *.pdf
-*.png
 *.sh
