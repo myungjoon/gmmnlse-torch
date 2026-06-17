@@ -3,13 +3,14 @@ import torch
 import math
 
 class Pulse:
-    def __init__(self, domain, coeffs, tfwhm=1.0, total_energy=1.0,
+    def __init__(self, domain, coeffs=0.0, tfwhm=1.0, total_energy=1.0,
                  p=1, C=0.0, t_center=0.0, type='gaussian', values=None, device=None):
         if type == 'custom':
             # values는 (P, Nt) complex tensor라고 가정
             if device is not None:
-                self.fields = torch.tensor(values, device=device, dtype=torch.complex64)
-            
+                self.fields = torch.tensor(values, device=device, dtype=torch.complex128)
+            else:
+                self.fields = torch.tensor(values, dtype=torch.complex128)
         elif type == 'gaussian':
             self.fields = self.gaussian(
                 domain, coeffs, tfwhm, total_energy,
@@ -31,6 +32,10 @@ class Pulse:
         # assert cdtype in (torch.complex64, torch.complex128), "coeffs must be complex dtype"
 
         rdtype = torch.float32  # Always use single precision
+
+        coeffs = coeffs / torch.sqrt(
+          torch.sum(torch.abs(coeffs)**2) + 1e-30
+        )
 
         t = domain.t.to(device=device, dtype=rdtype)  # (Nt,)
 

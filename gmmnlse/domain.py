@@ -19,7 +19,7 @@ class Domain:
         t = torch.linspace(-0.5 * self.time_window, 0.5 * self.time_window, self.Nt)
         return t
     
-    def generate_freqs(self):
+    def generate_freqs(self):                                                                                                                
         dt = self.time_window / self.Nt
-        omega = 2 * torch.pi * torch.fft.fftfreq(self.Nt, dt)
+        omega = 2 * torch.pi * torch.fft.fftfreq(self.Nt, dt, dtype=torch.float64)
         return omega
