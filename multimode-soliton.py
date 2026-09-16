@@ -52,7 +52,7 @@ if __name__ == '__main__':
     dt_s = dt * 1e-12  # s
     tfwhm = 0.250 # ps
     t = np.linspace(-0.5 * time_window, 0.5 * time_window, Nt)
-    t_center = -30
+    t_center = -40
 
     freq = np.fft.fftfreq(Nt, dt_s)
     f0 = c0 / wvl0
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     
     coeffs = np.load(f'coeffs_{num_modes}_{dz}.npy')
     coeffs = torch.tensor(coeffs, dtype=torch.complex128, device=device)
-    
+
     initial_fields = Pulse(domain, coeffs, tfwhm=tfwhm, total_energy=total_energy, p=1, C=0, t_center=t_center, type='gaussian')
     
     input_fields = initial_fields.fields
@@ -164,29 +164,33 @@ if __name__ == '__main__':
     ax2[1].set_ylabel('Intensity (a.u.)', fontsize=18)
     plt.savefig(f'output-{num_modes}-{dz}.png', dpi=300)
     
-    fig, axes = plt.subplots(num_modes, 2, figsize=(14, 5 * num_modes))
-    if num_modes == 1:
-        axes = axes[np.newaxis, :]
-    
-    for m in range(num_modes):
-        ax_t = axes[m, 0]
-        im_t = ax_t.pcolormesh(
-            t, z, intensity_t[:, m, :],
-            shading='auto', cmap='turbo',
-            vmax=intensity_t.max() * 0.5,
-        )
-        ax_t.set_xlabel('Time (ps)', fontsize=18)
-        ax_t.set_ylabel('Distance z (m)', fontsize=18)
-        ax_t.set_title(f'Mode {m} — Temporal', fontsize=18)
-        fig.colorbar(im_t, ax=ax_t, label='Intensity (a.u.)')
-    
-        ax_s = axes[m, 1]
-        spec_m = spec[:, m, :][:, order]
-        im_s = ax_s.pcolormesh(wl_sorted, z, spec_m, shading='auto', cmap='turbo',)
-        ax_s.set_xlabel('Wavelength (nm)', fontsize=18)
-        ax_s.set_ylabel('Distance z (m)', fontsize=18)
-        ax_s.set_title(f'Mode {m} — Spectral', fontsize=18)
-        fig.colorbar(im_s, ax=ax_s, label='Intensity (a.u.)')
-    
+    intensity_t_sum = intensity_t.sum(axis=1)      # (z, t)
+    spec_sum = spec.sum(axis=1)[:, order]          # (z, wl) — order로 정렬
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # 시간 영역
+    ax_t = axes[0]
+    im_t = ax_t.pcolormesh(
+        t, z, intensity_t_sum,
+        shading='auto', cmap='turbo',
+        vmax=intensity_t_sum.max() * 0.5,
+    )
+    ax_t.set_xlabel('Time (ps)', fontsize=18)
+    ax_t.set_ylabel('Distance z (m)', fontsize=18)
+    ax_t.set_title('All modes — Temporal', fontsize=18)
+    fig.colorbar(im_t, ax=ax_t, label='Intensity (a.u.)')
+
+    # 스펙트럼 영역
+    ax_s = axes[1]
+    im_s = ax_s.pcolormesh(
+        wl_sorted, z, spec_sum,
+        shading='auto', cmap='turbo',
+    )
+    ax_s.set_xlabel('Wavelength (nm)', fontsize=18)
+    ax_s.set_ylabel('Distance z (m)', fontsize=18)
+    ax_s.set_title('All modes — Spectral', fontsize=18)
+    fig.colorbar(im_s, ax=ax_s, label='Intensity (a.u.)')
+
     plt.tight_layout()
     plt.savefig(f'propagation_map-{num_modes}-{dz}.png', dpi=300)
