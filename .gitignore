@@ -177,3 +177,5 @@ cython_debug/
 /data
 *.pdf
 *.sh
+*.png
+*.npy
